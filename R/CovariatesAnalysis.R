@@ -5,7 +5,7 @@
 # studyFolder <- "/Users/yang/Desktop/RareDisease"
 
 # Diseases <- c("HSAN","Craniopharyngioma","Brain neoplasm","Kabuki syndrome","GNB-5 mutation")
-# label2 <- c("4445","4450","4452","4453","4454")
+# cohortsId <- c("4445","4450","4452","4453","4454")
 
 # setwd("D:/Users/msuchard/Documents/PatientLevelPrediction-master/HSAN/Truven_CCAE")
 # plpData <- loadPlpData("D:/Users/msuchard/Documents/PatientLevelPrediction-master/vignettes/hsan_CCAEwhole_plp_data")
