@@ -1,0 +1,358 @@
+---
+title: "RareDiseases"
+output: pdf_document
+---
+
+```{r echo=FALSE,message=FALSE,warning=FALSE,eval=TRUE}
+library(PatientLevelPrediction)
+library(dplyr)
+library(ggplot2)
+library(DatabaseConnector)
+```
+
+
+```{r}
+Diseases <- c("HSAN","Craniopharyngioma","Brain neoplasm","Kabuki syndrome","GNB-5 mutation")
+cohortsId <- c("4445","4450","4452","4453","4454")
+
+studyFolder <- "/Users/yang/Desktop/RareDisease"
+```
+
+
+```{r tidy=FALSE,eval=FALSE}
+connectionDetails <- createConnectionDetails(dbms = "postgresql", 
+                                             server = "localhost/ohdsi", 
+                                             user = "joe", 
+                                             password = "supersecret")
+
+cdmDatabaseSchema <- "my_cdm_data"
+cohortsDatabaseSchema <- "my_results"
+cdmVersion <- "5"
+```
+
+
+```{r}
+createAnalysesDetails <- function(connectionDetails,
+                                  cdmDatabaseSchema,
+                                  studyFolder,
+                                  cdmVersion,
+                                  disease,
+                                  cohortId){
+    # Define which types of covariates must be constructed ----
+    covariateSettings <- FeatureExtraction::covariateSettings <- createCovariateSettings(useCovariateDemographics = TRUE,
+                                                                                         useCovariateDemographicsGender = TRUE,
+                                                                                         useCovariateDemographicsRace = TRUE,
+                                                                                         useCovariateDemographicsEthnicity = TRUE,
+                                                                                         useCovariateDemographicsAge = TRUE,
+                                                                                         useCovariateDemographicsYear = TRUE,
+                                                                                         useCovariateDemographicsMonth = TRUE,
+                                                                                         useCovariateConditionOccurrence = TRUE,
+                                                                                         useCovariateConditionOccurrenceLongTerm = TRUE,
+                                                                                         useCovariateConditionOccurrenceShortTerm = TRUE,
+                                                                                         useCovariateConditionOccurrenceInptMediumTerm = TRUE,
+                                                                                         useCovariateConditionEra = TRUE,
+                                                                                         useCovariateConditionEraEver = TRUE,
+                                                                                         useCovariateConditionEraOverlap = TRUE,
+                                                                                         useCovariateConditionGroup = TRUE,
+                                                                                         useCovariateConditionGroupMeddra = TRUE,
+                                                                                         useCovariateConditionGroupSnomed = TRUE,
+                                                                                         useCovariateDrugExposure = TRUE,
+                                                                                         useCovariateDrugExposureLongTerm = TRUE,
+                                                                                         useCovariateDrugExposureShortTerm = TRUE,
+                                                                                         useCovariateDrugEra = TRUE,
+                                                                                         useCovariateDrugEraLongTerm = TRUE,
+                                                                                         useCovariateDrugEraShortTerm = TRUE,
+                                                                                         useCovariateDrugEraOverlap = TRUE,
+                                                                                         useCovariateDrugEraEver = TRUE,
+                                                                                         useCovariateDrugGroup = TRUE,
+                                                                                         useCovariateProcedureOccurrence = TRUE,
+                                                                                         useCovariateProcedureOccurrenceLongTerm = TRUE,
+                                                                                         useCovariateProcedureOccurrenceShortTerm = TRUE,
+                                                                                         useCovariateProcedureGroup = TRUE,
+                                                                                         useCovariateObservation = TRUE,
+                                                                                         useCovariateObservationLongTerm = TRUE,
+                                                                                         useCovariateObservationShortTerm = TRUE,
+                                                                                         useCovariateObservationCountLongTerm = TRUE,
+                                                                                         useCovariateMeasurement = TRUE,
+                                                                                         useCovariateMeasurementLongTerm = TRUE,
+                                                                                         useCovariateMeasurementShortTerm = TRUE,
+                                                                                         useCovariateMeasurementCountLongTerm = TRUE,
+                                                                                         useCovariateMeasurementBelow = TRUE,
+                                                                                         useCovariateMeasurementAbove = TRUE,
+                                                                                         useCovariateConceptCounts = TRUE,
+                                                                                         useCovariateRiskScores = TRUE,
+                                                                                         useCovariateRiskScoresCharlson = TRUE,
+                                                                                         useCovariateRiskScoresDCSI = TRUE,
+                                                                                         useCovariateRiskScoresCHADS2 = TRUE,
+                                                                                         useCovariateRiskScoresCHADS2VASc = TRUE,
+                                                                                         excludedCovariateConceptIds = c(),
+                                                                                         deleteCovariatesSmallCount = 100)
+
+    plpData <- PatientLevelPrediction::getPlpData(connectionDetails = connectionDetails,
+                                                  cdmDatabaseSchema = cdmDatabaseSchema,
+                                                  cohortDatabaseSchema = cdmDatabaseSchema,
+                                                  cohortTable = "cohort",
+                                                  cohortId = cohortId,
+                                                  washoutPeriod = 183,
+                                                  covariateSettings = covariateSettings,
+                                                  outcomeDatabaseSchema = cdmDatabaseSchema,
+                                                  outcomeTable = "cohort",
+                                                  outcomeIds = cohortId,
+                                                  cdmVersion = cdmVersion)
+
+    setwd(file.path(paste0(studyFolder,"/",disease,"/plp_data")))
+    PatientLevelPrediction::savePlpData(plpData,paste0(disease,"plp_data"))
+}
+
+createAnalysesDetails(connectionDetails,
+                                  cdmDatabaseSchema,
+                                  studyFolder,
+                                  cdmVersion,
+                                  disease,
+                                  cohortId)
+```
+
+
+
+```{r}
+    setwd(file.path(paste0(studyFolder,"/",disease)))
+
+    plpData <- PatientLevelPrediction::loadPlpData(file.path(paste0(studyFolder,"/",disease,"/plp_data")))
+
+    covariatesinfo <- as.data.frame(plpData$covariateRef[,1:3]) # get the match infromation of covariateId, covariateName and analysisId
+    nameid <- as.data.frame(covariatesinfo[,1:2])  # get the match infromation of covariateId and covariateName
+    covariateswhole <- as.data.frame(plpData$covariates[,1:2]) # all covariates with rowId (individual)
+
+    childrenage <- c(10:28)
+    childrenrowid <- dplyr::filter(covariateswhole,covariateswhole$covariateId %in% childrenage)
+    childrencovariate <- merge(childrenrowid,covariateswhole,by = "rowId",all.x = TRUE, sort = TRUE)
+    names(childrencovariate) <- c("rowId","Age group","covariateId")
+
+    mergecovariate <- merge(childrencovariate,covariatesinfo, by = "covariateId",all.x = TRUE, sort = TRUE) # all covariates with the infromation of covariates name (name and id), covariates type (analysisId), age group and rowId
+
+```
+
+
+# Demographics
+```{r}
+summaryDemo <- function(mergecovariate){
+
+        ## Age group
+        age_group <- dplyr::filter(mergecovariate,mergecovariate$analysisId==5)
+
+        agegroup <- as.data.frame(table(age_group$covariateId))
+        agegroup <- dplyr::arrange(agegroup,desc(Freq))
+        agegroup$prevalence <- agegroup$Freq/length(childrenrowid[,1])
+        names(agegroup) <- c("covariateId","Person Count","Prevalence")
+
+        agegroup <- merge(agegroup,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        agegroup <- dplyr::arrange(agegroup,desc(agegroup$`Person Count`))
+
+        # age_group$covariateName <- factor(age_group$covariateName, levels=c("Age group: 5-9","Age group: 10-14","Age group: 15-19"))
+
+        plotage <- ggplot2::ggplot(age_group,aes(x=age_group$covariateName))+geom_bar(width=0.5,fill=brewer.pal(length(agegroup),"Blues"))+labs(x="Age group",y="Person Count")+geom_text(aes(label=..count..),
+                                                                                                                                                                                      stat="count", color = "black",
+                                                                                                                                                                                      vjust = 0, size = 4)
+        ggplot2::ggsave(filename="Age Group.png",plot=plotage,device="png",path = file.path(paste0(studyFolder,"/",disease)))
+        # write.csv(age_group,file="age_group.csv")
+        write.csv(agegroup,file="agegroup.csv")
+
+
+        ## Gender
+
+        Gender<- dplyr::filter(mergecovariate,mergecovariate$analysisId==2)
+
+        gender <- as.data.frame(table(Gender$covariateId))
+        g <- c("MALE","FEMALE")
+        counts <- c(gender[1,2],length(childrenrowid[,1])-gender[1,2])
+        gender <- data.frame(g,counts)
+        names(gender) <- c("Gender","Patient Counts")
+
+        # write.csv(Gender,file="Gender.csv")
+        write.csv(gender,file="gender.csv")
+
+
+        ## demo
+
+        age_gender <- merge(age_group, Gender, by = "rowId",all.x = TRUE, sort = TRUE)
+        new <- c("rowId","Age group.x","covariateName.x","covariateId.y","covariateName.y")
+        age_gender <- age_gender[new]
+        names(age_gender) <- c("rowId","age group.x","Age Group","covariateId.y","Gender")
+        age_gender$covariateId.y[is.na(age_gender$covariateId.y)] <- 8532
+        age_gender$Gender[is.na(age_gender$Gender)] <- "Gender = FEMALE"
+
+        plotgender <- ggplot2::ggplot(age_gender,aes(x=age_gender$Gender))+geom_bar(width=0.4,fill=c("lightcoral","royalblue3"))+labs(x="Gender",y="Person Count")+geom_text(aes(label=..count..),stat="count", color = "black",
+                                                                                                                                                                    vjust = 0, size = 4)
+        ggplot2::ggsave(filename="Gender.png",plot=plotgender,device="png",path = file.path(paste0(studyFolder,"/",disease)))
+
+        write.csv(age_gender,file="age_gender.csv")
+    }
+
+summaryDemo(mergecovariate)
+```
+
+
+# Rank covariates
+```{r}
+rankcov <- function(mergecovariate){
+
+        ## Condition Occurrence
+
+        condition_occurrence <- dplyr::filter(mergecovariate,mergecovariate$analysisId>100 & mergecovariate$analysisId<200)
+
+        conditionoccur <- as.data.frame(table(condition_occurrence$covariateId))
+        conditionoccur <- dplyr::arrange(conditionoccur,desc(Freq))
+        conditionoccur$prevalence <- conditionoccur$Freq/length(childrenrowid[,1])
+        names(conditionoccur) <- c("covariateId","Person Count","Prevalence")
+
+        conditionoccur <- merge(conditionoccur,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        conditionoccur <- dplyr::arrange(conditionoccur,desc(conditionoccur$`Person Count`))
+
+        # write.csv(condition_occurrence,file="condition_occurence.csv")
+        write.csv(conditionoccur,file="conditionoccur.csv")
+
+
+        ## Condition Era
+
+        condition_era <- dplyr::filter(mergecovariate,mergecovariate$analysisId>200 & mergecovariate$analysisId<300)
+
+        conditionera <- as.data.frame(table(condition_era$covariateId))
+        conditionera <- dplyr::arrange(conditionera,desc(Freq))
+        conditionera$prevalence <- conditionera$Freq/length(childrenrowid[,1])
+        names(conditionera) <- c("covariateId","Person Count","Prevalence")
+
+        conditionera <- merge(conditionera,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        conditionera <- dplyr::arrange(conditionera,desc(conditionera$`Person Count`))
+
+        # write.csv(condition_era,file="condition_era.csv")
+        write.csv(conditionera,file="conditionera.csv")
+
+
+        ## Drug Exposure
+
+        drug_exposure <- dplyr::filter(mergecovariate,mergecovariate$analysisId>400 & mergecovariate$analysisId<500)
+
+        drugexpo <- as.data.frame(table(drug_exposure$covariateId))
+        drugexpo <- dplyr::arrange(drugexpo,desc(Freq))
+        drugexpo$prevalence <- drugexpo$Freq/length(childrenrowid[,1])
+        names(drugexpo) <- c("covariateId","Person Count","Prevalence")
+
+        drugexpo <- merge(drugexpo,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        drugexpo <- dplyr::arrange(drugexpo,desc(drugexpo$`Person Count`))
+
+        # write.csv(drug_exposure,file="drug_exposure.csv")
+        write.csv(drugexpo,file="drugexpo.csv")
+
+
+        ## Drug Era
+
+        drug_era <- dplyr::filter(mergecovariate,mergecovariate$analysisId>500 & mergecovariate$analysisId<600)
+
+        drugera <- as.data.frame(table(drug_era$covariateId))
+        drugera <- dplyr::arrange(drugera,desc(Freq))
+        drugera$prevalence <- drugera$Freq/length(childrenrowid[,1])
+        names(drugera) <- c("covariateId","Person Count","Prevalence")
+
+        drugera <- merge(drugera,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        drugera <- dplyr::arrange(drugera,desc(drugera$`Person Count`))
+
+        # write.csv(drug_era,file="drug_era.csv")
+        write.csv(drugera,file="drugera.csv")
+
+
+        ## number of drugs within each ATC3 groupings all time prior
+
+        drug_num <- dplyr::filter(mergecovariate,mergecovariate$analysisId>600 & mergecovariate$analysisId<700)
+
+        drugnum <- as.data.frame(table(drug_num$covariateId))
+        drugnum <- dplyr::arrange(drugnum,desc(Freq))
+        drugnum$prevalence <- drugnum$Freq/length(childrenrowid[,1])
+        names(drugnum) <- c("covariateId","Person Count","Prevalence")
+
+        drugnum <- merge(drugnum,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        drugnum <- dplyr::arrange(drugnum,desc(drugnum$`Person Count`))
+
+        # write.csv(drug_num,file="drug_num.csv")
+        write.csv(drugnum,file="drugnum.csv")
+
+
+        ## Procedure Occurrence
+
+        procedure_occurrence <- dplyr::filter(mergecovariate,mergecovariate$analysisId>700 & mergecovariate$analysisId<800)
+
+        procedureoccur <- as.data.frame(table(procedure_occurrence$covariateId))
+        procedureoccur <- dplyr::arrange(procedureoccur,desc(Freq))
+        procedureoccur$prevalence <- procedureoccur$Freq/length(childrenrowid[,1])
+        names(procedureoccur) <- c("covariateId","Person Count","Prevalence")
+
+        procedureoccur <- merge(procedureoccur,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        procedureoccur <- dplyr::arrange(procedureoccur,desc(procedureoccur$`Person Count`))
+
+        # write.csv(procedure_occurrence,file="procedure_occurrence.csv")
+        write.csv(procedureoccur,file="procedureoccur.csv")
+
+
+        ## Observation
+
+        Observation <- dplyr::filter(mergecovariate,mergecovariate$analysisId>900 & mergecovariate$analysisId<1000)
+
+        Ob <- as.data.frame(table(Observation$covariateId))
+        Ob <- dplyr::arrange(Ob,desc(Freq))
+        Ob$prevalence <- Ob$Freq/length(childrenrowid[,1])
+        names(Ob) <- c("covariateId","Person Count","Prevalence")
+
+        Ob <- merge(Ob,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        Ob <- dplyr::arrange(Ob,desc(Ob$`Person Count`))
+
+        # write.csv(Observation,file="Observation.csv")
+        write.csv(Ob,file="Ob.csv")
+
+    }
+
+rankcov(mergecovariate)
+```
+
+
+# Tree map (unfinished!)
+```{r}
+library(readr)
+library(treemap)
+library(d3treeR)
+library(googleVis)
+# devtools::install_github("timelyportfolio/d3treeR")
+
+class <- c("SOC","ATC1")
+
+treemap <- function(disease, covariatetype, classification){
+    
+    covariatetype <-read_csv(file.path(paste0(studyFolder,"/",disease,"/",covariatetype,".csv")), col_types = cols(`Person Count` = col_double()))
+    paste0(covariatetype,"200") <- dataset[1:200,]
+    names(conditionoccur200) <- c("X1","covariateId", "Person Count","Prevalence","SOC","covariateName")
+    write.csv(conditionoccur200, file = "conditionoccur200.csv")
+    
+    treemap::treemap(paste0(covariatetype,"200"), 
+                            index=c(classification,"covariateName"),  
+                            vSize = "Person Count",  
+                            vColor= "Prevalence", 
+                            type="value", 
+                            palette = "-RdGy", 
+                            range=c(0,1),
+                            bg.labels = 100,
+                            title=paste0(disease,"plp_data"), 
+                            fontsize.title = 14,
+                            fontface.labels = 1,
+                            fontfamily.title = "serif",
+                            fontfamily.labels = "serif",
+                            fontfamily.legend = "serif",
+                            overlap.labels = 1,
+                            border.col="white",
+                            lowerbound.cex.labels=0,
+                            aspRatio = 16/9)
+
+d3tree(conditiontreemap,rootname="HSAN Condition Occurrence")
+}
+
+```
+
+
+

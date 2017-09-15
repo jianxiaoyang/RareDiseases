@@ -16,18 +16,18 @@
 childrencov <- function(disease,studyFolder){
     setwd(file.path(paste0(studyFolder,"/",disease)))
 
-    plpData <- PatientLevelPrediction::loadPlpData(file.path(paste0(studyFolder,"/",disease,"/hsan_CCAEwhole_plp_data")))
+    plpData <- PatientLevelPrediction::loadPlpData(file.path(paste0(studyFolder,"/",disease,"/plp_data")))
 
-    covariatesinfo <- as.data.frame(plpData$covariateRef[,1:3])
-    nameid <- as.data.frame(covariatesinfo[,1:2])
-    covariateswhole <- as.data.frame(plpData$covariates[,1:2])
+    covariatesinfo <- as.data.frame(plpData$covariateRef[,1:3]) # get the match infromation of covariateId, covariateName and analysisId
+    nameid <- as.data.frame(covariatesinfo[,1:2])  # get the match infromation of covariateId and covariateName
+    covariateswhole <- as.data.frame(plpData$covariates[,1:2]) # all covariates with rowId (individual)
 
-    childrenage <- c(11:13)
+    childrenage <- c(10:28)
     childrenrowid <- dplyr::filter(covariateswhole,covariateswhole$covariateId %in% childrenage)
-    childrencovariate <- dplyr::merge(childrenrowid,covariateswhole,by = "rowId",all.x = TRUE, sort = TRUE)
+    childrencovariate <- merge(childrenrowid,covariateswhole,by = "rowId",all.x = TRUE, sort = TRUE)
     names(childrencovariate) <- c("rowId","Age group","covariateId")
 
-    mergecovariate <- dplyr::merge(childrencovariate,covariatesinfo, by = "covariateId",all.x = TRUE, sort = TRUE)
+    mergecovariate <- merge(childrencovariate,covariatesinfo, by = "covariateId",all.x = TRUE, sort = TRUE) # all covariates with the infromation of covariates name (name and id), covariates type (analysisId), age group and rowId
 
     # Demographics
     summaryDemo <- function(mergecovariate){
@@ -40,15 +40,15 @@ childrencov <- function(disease,studyFolder){
         agegroup$prevalence <- agegroup$Freq/length(childrenrowid[,1])
         names(agegroup) <- c("covariateId","Person Count","Prevalence")
 
-        agegroup <- dplyr::merge(agegroup,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        agegroup <- merge(agegroup,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
         agegroup <- dplyr::arrange(agegroup,desc(agegroup$`Person Count`))
 
-        age_group$covariateName <- factor(age_group$covariateName, levels=c("Age group: 5-9","Age group: 10-14","Age group: 15-19"))
+        # age_group$covariateName <- factor(age_group$covariateName, levels=c("Age group: 5-9","Age group: 10-14","Age group: 15-19"))
 
-        plotage <- ggplot2::ggplot(age_group,aes(x=age_group$covariateName))+geom_bar(width=0.5,fill=c("royalblue1","royalblue3","royalblue4"))+labs(x="Age group",y="Person Count")+geom_text(aes(label=..count..),
+        plotage <- ggplot2::ggplot(age_group,aes(x=age_group$covariateName))+geom_bar(width=0.5,fill=brewer.pal(length(agegroup),"Blues"))+labs(x="Age group",y="Person Count")+geom_text(aes(label=..count..),
                                                                                                                                                                                       stat="count", color = "black",
                                                                                                                                                                                       vjust = 0, size = 4)
-        ggsave(filename="Age Group.png",plot=plotage,device="png",path = file.path(paste0(studyFolder,"/",disease)))
+        ggplot2::ggsave(filename="Age Group.png",plot=plotage,device="png",path = file.path(paste0(studyFolder,"/",disease)))
         # write.csv(age_group,file="age_group.csv")
         write.csv(agegroup,file="agegroup.csv")
 
@@ -69,7 +69,7 @@ childrencov <- function(disease,studyFolder){
 
         ## demo
 
-        age_gender <- dplyr::merge(age_group, Gender, by = "rowId",all.x = TRUE, sort = TRUE)
+        age_gender <- merge(age_group, Gender, by = "rowId",all.x = TRUE, sort = TRUE)
         new <- c("rowId","Age group.x","covariateName.x","covariateId.y","covariateName.y")
         age_gender <- age_gender[new]
         names(age_gender) <- c("rowId","age group.x","Age Group","covariateId.y","Gender")
@@ -78,7 +78,7 @@ childrencov <- function(disease,studyFolder){
 
         plotgender <- ggplot2::ggplot(age_gender,aes(x=age_gender$Gender))+geom_bar(width=0.4,fill=c("lightcoral","royalblue3"))+labs(x="Gender",y="Person Count")+geom_text(aes(label=..count..),stat="count", color = "black",
                                                                                                                                                                     vjust = 0, size = 4)
-        ggsave(filename="Gender.png",plot=plotgender,device="png",path = file.path(paste0(studyFolder,"/",disease)))
+        ggplot2::ggsave(filename="Gender.png",plot=plotgender,device="png",path = file.path(paste0(studyFolder,"/",disease)))
 
         write.csv(age_gender,file="age_gender.csv")
     }
@@ -98,7 +98,7 @@ childrencov <- function(disease,studyFolder){
         conditionoccur$prevalence <- conditionoccur$Freq/length(childrenrowid[,1])
         names(conditionoccur) <- c("covariateId","Person Count","Prevalence")
 
-        conditionoccur <- dplyr::merge(conditionoccur,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        conditionoccur <- merge(conditionoccur,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
         conditionoccur <- dplyr::arrange(conditionoccur,desc(conditionoccur$`Person Count`))
 
         # write.csv(condition_occurrence,file="condition_occurence.csv")
@@ -114,7 +114,7 @@ childrencov <- function(disease,studyFolder){
         conditionera$prevalence <- conditionera$Freq/length(childrenrowid[,1])
         names(conditionera) <- c("covariateId","Person Count","Prevalence")
 
-        conditionera <- dplyr::merge(conditionera,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        conditionera <- merge(conditionera,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
         conditionera <- dplyr::arrange(conditionera,desc(conditionera$`Person Count`))
 
         # write.csv(condition_era,file="condition_era.csv")
@@ -130,7 +130,7 @@ childrencov <- function(disease,studyFolder){
         drugexpo$prevalence <- drugexpo$Freq/length(childrenrowid[,1])
         names(drugexpo) <- c("covariateId","Person Count","Prevalence")
 
-        drugexpo <- dplyr::merge(drugexpo,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        drugexpo <- merge(drugexpo,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
         drugexpo <- dplyr::arrange(drugexpo,desc(drugexpo$`Person Count`))
 
         # write.csv(drug_exposure,file="drug_exposure.csv")
@@ -146,7 +146,7 @@ childrencov <- function(disease,studyFolder){
         drugera$prevalence <- drugera$Freq/length(childrenrowid[,1])
         names(drugera) <- c("covariateId","Person Count","Prevalence")
 
-        drugera <- dplyr::merge(drugera,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        drugera <- merge(drugera,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
         drugera <- dplyr::arrange(drugera,desc(drugera$`Person Count`))
 
         # write.csv(drug_era,file="drug_era.csv")
@@ -162,7 +162,7 @@ childrencov <- function(disease,studyFolder){
         drugnum$prevalence <- drugnum$Freq/length(childrenrowid[,1])
         names(drugnum) <- c("covariateId","Person Count","Prevalence")
 
-        drugnum <- dplyr::merge(drugnum,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        drugnum <- merge(drugnum,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
         drugnum <- dplyr::arrange(drugnum,desc(drugnum$`Person Count`))
 
         # write.csv(drug_num,file="drug_num.csv")
@@ -178,7 +178,7 @@ childrencov <- function(disease,studyFolder){
         procedureoccur$prevalence <- procedureoccur$Freq/length(childrenrowid[,1])
         names(procedureoccur) <- c("covariateId","Person Count","Prevalence")
 
-        procedureoccur <- dplyr::merge(procedureoccur,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        procedureoccur <- merge(procedureoccur,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
         procedureoccur <- dplyr::arrange(procedureoccur,desc(procedureoccur$`Person Count`))
 
         # write.csv(procedure_occurrence,file="procedure_occurrence.csv")
@@ -194,7 +194,7 @@ childrencov <- function(disease,studyFolder){
         Ob$prevalence <- Ob$Freq/length(childrenrowid[,1])
         names(Ob) <- c("covariateId","Person Count","Prevalence")
 
-        Ob <- dplyr::merge(Ob,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
+        Ob <- merge(Ob,nameid, by = "covariateId",all.x = TRUE, sort = TRUE)
         Ob <- dplyr::arrange(Ob,desc(Ob$`Person Count`))
 
         # write.csv(Observation,file="Observation.csv")
